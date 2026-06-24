@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pop-Up Jail Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#101a19; --panel:#172423; --panel2:#1e2e2c; --line:#2c413e;
+    --text:#e7e3d6; --muted:#8fa19d; --muted2:#6f827e;
+    --safe:#5bbf9a; --safe-dim:#34594e; --risk:#dd8a52; --risk-dim:#5e4030;
+    --gold:#d7b65a;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #1a2b29 0%, transparent 60%),
+      var(--ink);
+    color:var(--text);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding:28px 18px 60px;
+  }
+  .wrap{max-width:1040px;margin:0 auto}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+  /* ---- header ---- */
+  header{margin-bottom:22px}
+  .eyebrow{
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--gold);margin:0 0 8px;
+  }
+  h1{font-size:clamp(28px,5vw,44px);font-weight:700;margin:0;letter-spacing:-.02em}
+  .sub{color:var(--muted);max-width:62ch;margin:8px 0 0;font-size:15px}
+  .chip{
+    display:inline-block;margin-top:12px;font-family:"JetBrains Mono",monospace;
+    font-size:11px;letter-spacing:.04em;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:4px 11px;
+  }
+
+  /* ---- hero gauge ---- */
+  .hero{
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line);border-radius:14px;
+    padding:24px 26px;margin:22px 0;
+    display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;
+  }
+  .readout{min-width:172px}
+  .readout .label{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .pct{font-size:64px;font-weight:700;letter-spacing:-.03em;line-height:1;margin:6px 0 2px;font-family:"Space Grotesk",sans-serif}
+  .verdict{font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:500}
+  .zval{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted2);margin-top:8px}
+
+  .gauge{width:100%}
+  .gauge .track{
+    position:relative;height:16px;border-radius:999px;overflow:hidden;
+    background:linear-gradient(90deg,#7a3f2a 0%,#9c5a32 22%,#6f6a3a 50%,#3f6f54 72%,#2f7d5f 100%);
+    border:1px solid var(--line);
+  }
+  .gauge .needle{
+    position:absolute;top:-5px;width:3px;height:26px;border-radius:2px;
+    background:var(--text);box-shadow:0 0 0 2px var(--ink);
+    transition:left .45s cubic-bezier(.22,.61,.36,1);
+  }
+  .gauge .scale{display:flex;justify-content:space-between;margin-top:8px;
+    font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--muted2);letter-spacing:.08em}
+
+  /* ---- columns ---- */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 20px 22px;
+  }
+  .card h2{font-size:13px;font-family:"JetBrains Mono",monospace;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--gold);margin:0 0 4px;font-weight:500}
+  .card .hint{color:var(--muted2);font-size:12.5px;margin:0 0 18px}
+
+  .field{margin-bottom:16px}
+  .field>label{display:block;font-size:13px;color:var(--text);margin-bottom:6px;font-weight:500}
+  .field .note{display:block;color:var(--muted2);font-size:11.5px;margin-top:5px;font-family:"JetBrains Mono",monospace}
+
+  input[type=number],select{
+    width:100%;background:var(--ink);color:var(--text);
+    border:1px solid var(--line);border-radius:8px;padding:9px 11px;
+    font-family:"JetBrains Mono",monospace;font-size:14px;
+  }
+  input[type=number]:focus,select:focus,button:focus-visible,
+  input[type=range]:focus-visible{outline:2px solid var(--safe);outline-offset:2px}
+  select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%238fa19d' stroke-width='1.5' fill='none'/></svg>");
+    background-repeat:no-repeat;background-position:right 11px center;padding-right:30px}
+
+  .spendrow{display:flex;gap:10px;align-items:center}
+  .spendrow input[type=number]{flex:0 0 118px}
+  input[type=range]{flex:1;accent-color:var(--safe);height:4px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  /* ---- dynamic array rows ---- */
+  .rows{display:flex;flex-direction:column;gap:12px}
+  .row{
+    border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel2);
+    position:relative;
+  }
+  .row .rowhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .row .rowtitle{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted)}
+  .row .contrib{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--risk);font-weight:500;margin-right:3rem}
+  .mini{font-size:11px;color:var(--muted2);margin-bottom:4px;display:block}
+  .del{
+    background:none;border:1px solid var(--risk);color:var(--risk);
+    border-radius:7px;width:26px;height:26px;cursor:pointer;font-size:15px;line-height:1;
+    display:flex;align-items:center;justify-content:center;padding:0;
+  }
+  .del:hover{border-color:var(--risk);color:var(--muted)}
+  .add{
+    width:100%;margin-top:12px;background:none;border:1px dashed var(--line);
+    color:var(--safe);border-radius:9px;padding:10px;cursor:pointer;
+    font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:500;
+  }
+  .add:hover{border-color:var(--safe);background:rgba(91,191,154,.06)}
+  .empty{color:var(--muted2);font-size:12.5px;font-style:italic;padding:6px 2px}
+
+  /* ---- ledger ---- */
+  .ledger .lrow{
+    display:grid;grid-template-columns:128px 1fr 64px;gap:10px;align-items:center;
+    padding:7px 0;border-bottom:1px solid rgba(44,65,62,.5);
+  }
+  .ledger .lrow:last-child{border-bottom:none}
+  .lname{font-size:12.5px;color:var(--muted)}
+  .lbar{position:relative;height:14px;background:var(--ink);border-radius:4px;overflow:hidden}
+  .lbar .mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line)}
+  .lbar .fill{position:absolute;top:0;bottom:0;transition:width .35s ease, left .35s ease}
+  .lbar .fill.pos{background:var(--safe);left:50%}
+  .lbar .fill.neg{background:var(--risk);right:50%}
+  .lval{font-family:"JetBrains Mono",monospace;font-size:12px;text-align:right}
+  .lval.pos{color:var(--safe)} .lval.neg{color:var(--risk)}
+  .ztotal{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  }
+  .ztotal .k{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .ztotal .v{font-family:"JetBrains Mono",monospace;font-size:18px;font-weight:700}
+
+  /* ---- advanced ---- */
+  details.adv{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+  details.adv summary{
+    cursor:pointer;font-family:"JetBrains Mono",monospace;font-size:11px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--gold);list-style:none;
+  }
+  details.adv summary::-webkit-details-marker{display:none}
+  details.adv summary::before{content:"+ ";color:var(--muted)}
+  details.adv[open] summary::before{content:"– "}
+  .wgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .wfield label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px;font-family:"JetBrains Mono",monospace}
+
+  .reset{
+    margin-top:14px;background:none;border:1px solid var(--line);color:var(--muted);
+    border-radius:8px;padding:8px 14px;cursor:pointer;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.06em
+  }
+  .reset:hover{border-color:var(--text);color:var(--text)}
+
+  footer{margin-top:26px;color:var(--muted2);font-size:12px;max-width:78ch}
+  footer b{color:var(--muted)}
+
+  @media (max-width:860px){
+    .cols{grid-template-columns:1fr}
+    .hero{grid-template-columns:1fr;gap:18px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Reverse-engineered heuristic</p>
+    <h1>Pop-Up Jail Model</h1>
+    <p class="sub">A tunable estimate of the odds Amex <em>won't</em> hit you with the pop-up if you applied today. Each input feeds a weighted score; the score runs through a logistic curve to a probability. Edit anything and watch the ledger move.</p>
+    <span class="chip">Not Amex's real algorithm — priors, not parameters</span>
+  </header>
+
+  <section class="hero">
+    <div class="readout">
+      <div class="label">P(no pop-up)</div>
+      <div class="pct mono" id="pct">—</div>
+      <div class="verdict" id="verdict">—</div>
+      <div class="zval" id="zval">Z = —</div>
+    </div>
+    <div class="gauge">
+      <div class="track"><div class="needle" id="needle" style="left:50%"></div></div>
+      <div class="scale"><span>0 · jail</span><span>50 · coin flip</span><span>100 · clear</span></div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <!-- INPUTS -->
+    <div class="card">
+      <h2>Profile</h2>
+      <p class="hint">Defaults are pre-filled with your numbers. Closed cards and retention events are lists — add as many as apply.</p>
+
+      <div class="field">
+        <label for="spend">Average monthly Amex $ spend</label>
+        <div class="spendrow">
+          <input type="number" id="spend" min="0" step="10" value="20">
+          <input type="range" id="spendRange" min="0" max="5000" step="10" value="20">
+        </div>
+        <span class="note" id="spendNote"></span>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="tenure">Oldest open Amex (yrs)</label>
+          <input type="number" id="tenure" min="0" step="1" value="6">
+        </div>
+        <div class="field">
+          <label for="velocity">Bonuses earned, last 12mo</label>
+          <input type="number" id="velocity" min="0" step="1" value="1">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="bank">Amex bank product</label>
+          <select id="bank">
+            <option value="none">None</option>
+            <option value="dormant" selected>Holds, dormant</option>
+            <option value="active">Holds, active</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="offers">Amex Offers usage</label>
+          <select id="offers">
+            <option value="none">Never</option>
+            <option value="seldom" selected>Seldom</option>
+            <option value="regular">Regular</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="lifetime">Lifetime Amex cards opened &amp; closed</label>
+        <input type="number" id="lifetime" min="0" step="1" value="1">
+      </div>
+
+      <div class="field" style="margin-bottom:8px">
+        <label>Retention / intro-APR / balance-transfer events</label>
+        <span class="note" style="margin-top:0;margin-bottom:10px">Things Amex paid for. They decay with age.</span>
+        <div class="rows" id="retRows"></div>
+        <button class="add" id="addRet">+ Add event</button>
+      </div>
+    </div>
+
+    <!-- CLOSED CARDS + LEDGER -->
+    <div class="card">
+      <h2>Closed cards</h2>
+      <p class="hint">Each closure is a P&amp;L line: bonus paid out, recovered by post-bonus spend and time held, then decayed by how long ago you closed it.</p>
+      <div class="rows" id="cardRows"></div>
+      <button class="add" id="addCard">+ Add closed card</button>
+
+      <h2 style="margin-top:26px">Score ledger</h2>
+      <p class="hint">Green pushes toward clear, amber toward jail. They sum to Z.</p>
+      <div class="ledger" id="ledger"></div>
+      <div class="ztotal"><span class="k">Z (summed)</span><span class="v mono" id="zsum">—</span></div>
+
+      <details class="adv">
+        <summary>Weights &amp; decay</summary>
+        <div class="wgrid">
+          <div class="wfield"><label>Baseline</label><input type="number" id="w_base" step="0.05" value="0.30"></div>
+          <div class="wfield"><label>Throughput ×E</label><input type="number" id="w_through" step="0.05" value="0.50"></div>
+          <div class="wfield"><label>Tenure ×yrs</label><input type="number" id="w_tenure" step="0.01" value="0.08"></div>
+          <div class="wfield"><label>Closure base</label><input type="number" id="w_close" step="0.1" value="2.3"></div>
+          <div class="wfield"><label>Retention each</label><input type="number" id="w_ret" step="0.05" value="0.50"></div>
+          <div class="wfield"><label>Velocity ×(V−1)</label><input type="number" id="w_vel" step="0.05" value="0.40"></div>
+          <div class="wfield"><label>Lifetime ×count</label><input type="number" id="w_life" step="0.01" value="0.05"></div>
+          <div class="wfield"><label>Decay half-life (mo)</label><input type="number" id="w_half" step="1" value="12"></div>
+        </div>
+        <button class="reset" id="reset">Reset weights</button>
+      </details>
+    </div>
+  </div>
+
+  <footer>
+    <p><b>How to read it.</b> The model targets profitability, not credit risk: throughput and tenure help; recent bonus-grab closures and paid retention offers hurt; old events fade on the half-life. The probability is most trustworthy near the middle and overconfident at the tails — treat a 90 as "very likely fine," not a guarantee. With the supplied defaults it lands near the high-50s, a touch above the ~50% we discussed because the generalized closure term is granular and the retention event now decays rather than counting flat.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  var DEFAULT_WEIGHTS = {base:0.30, through:0.50, tenure:0.08, close:2.3, ret:0.50, vel:0.40, life:0.05, half:12};
+  var state = {
+    spend: 20,
+    tenure: 7,
+    velocity: 1,
+    bank: "dormant",
+    offers: "seldom",
+    lifetime: 1,
+    // arrays of objects — as requested
+    retentions: [ {type:"retention", monthsSince:6} ],
+    closedCards: [ {label:"Card 1", bonus:60000, monthsOpen:12, monthsSinceClosed:4, postBonusSpend:1} ],
+    weights: Object.assign({}, DEFAULT_WEIGHTS)
+  };
+
+  var SPEND_LABEL = ["none","low","moderate","heavy"];
+
+  // ---------- math ----------
+  function clamp(x,lo,hi){return Math.max(lo,Math.min(hi,x));}
+
+  // monthly $ -> engagement E in [0,3], piecewise-linear through anchors
+  function throughputE(s){
+    var a=[[0,0],[20,0.25],[100,0.6],[500,1.4],[1000,1.9],[2000,2.4],[4000,3.0],[100000,3.0]];
+    for(var i=1;i<a.length;i++){
+      if(s<=a[i][0]){
+        var t=(s-a[i-1][0])/(a[i][0]-a[i-1][0]);
+        return a[i-1][1]+t*(a[i][1]-a[i-1][1]);
+      }
+    }
+    return 3;
+  }
+
+  function stickinessK(bank,offers){
+    var b={none:0,dormant:0.1,active:0.3}[bank]||0;
+    var o={none:0,seldom:0.1,regular:0.2}[offers]||0;
+    return Math.min(0.5, b+o);
+  }
+
+  function closedCardPenalty(card,w){
+    var bonusMag = clamp((card.bonus||0)/90000, 0.3, 1.6);
+    var spendFactor = 1 - clamp(card.postBonusSpend,0,3)/3;     // none=1 ... heavy=0
+    var holdFactor  = clamp((24 - (card.monthsOpen||0))/24, 0, 1);
+    var dumpiness   = clamp(spendFactor*(0.55 + 0.45*holdFactor), 0, 1);
+    var decay       = Math.exp(-(card.monthsSinceClosed||0)/w.half);
+    return w.close * bonusMag * dumpiness * decay;            // positive = badness
+  }
+
+  function retentionPenalty(ev,w){
+    return w.ret * Math.exp(-(ev.monthsSince||0)/w.half);
+  }
+
+  function compute(){
+    var w=state.weights;
+    var E=throughputE(state.spend);
+    var K=stickinessK(state.bank,state.offers);
+    var terms=[];
+    terms.push({name:"Baseline", v:+w.base});
+    terms.push({name:"Throughput", v:+(w.through*E)});
+    terms.push({name:"Tenure", v:+(w.tenure*Math.min(state.tenure,10))});
+    terms.push({name:"Stickiness", v:+K});
+
+    state.closedCards.forEach(function(c,i){
+      terms.push({name:(c.label||("Closed "+(i+1))), v:-closedCardPenalty(c,w)});
+    });
+    state.retentions.forEach(function(ev,i){
+      terms.push({name:"Retention "+(i+1), v:-retentionPenalty(ev,w)});
+    });
+    terms.push({name:"Velocity", v:-(w.vel*Math.max(0,state.velocity-1))});
+    terms.push({name:"Lifetime o/c", v:-(w.life*state.lifetime)});
+
+    var Z=terms.reduce(function(a,t){return a+t.v;},0);
+    var P=100/(1+Math.exp(-Z));
+    return {terms:terms, Z:Z, P:P, E:E, K:K};
+  }
+
+  function verdictFor(P){
+    if(P<25) return ["Expect the pop-up", "var(--risk)"];
+    if(P<45) return ["Leans toward pop-up", "var(--risk)"];
+    if(P<55) return ["Coin flip", "var(--gold)"];
+    if(P<70) return ["Leans clear", "var(--safe)"];
+    if(P<85) return ["Likely clear", "var(--safe)"];
+    return ["Very likely clear", "var(--safe)"];
+  }
+
+  // ---------- render ----------
+  var $=function(id){return document.getElementById(id);};
+
+  function renderRetentions(){
+    var host=$("retRows"); host.innerHTML="";
+    if(!state.retentions.length){ host.innerHTML='<div class="empty">No events — clean on this axis.</div>'; }
+    state.retentions.forEach(function(ev,i){
+      var pen=retentionPenalty(ev,state.weights);
+      var el=document.createElement("div"); el.className="row";
+      el.innerHTML=
+        '<div class="rowhead"><span class="rowtitle">Event '+(i+1)+'</span>'+
+        '<span class="contrib">−'+pen.toFixed(2)+'</span></div>'+
+        '<div class="grid2">'+
+          '<div><span class="mini">Type</span><select data-k="type" data-i="'+i+'">'+
+            opt(["retention","Retention offer"],ev.type)+opt(["apr","Intro-APR"],ev.type)+opt(["bt","Balance transfer"],ev.type)+
+          '</select></div>'+
+          '<div><span class="mini">Months ago</span><input type="number" min="0" step="1" data-k="monthsSince" data-i="'+i+'" value="'+ev.monthsSince+'"></div>'+
+        '</div>'+
+        '<button class="del" data-del-ret="'+i+'" title="Remove" style="position:absolute;top:12px;right:12px">×</button>';
+      host.appendChild(el);
+    });
+  }
+
+  function renderCards(){
+    var host=$("cardRows"); host.innerHTML="";
+    if(!state.closedCards.length){ host.innerHTML='<div class="empty">No closed cards — nothing dragging here.</div>'; }
+    state.closedCards.forEach(function(c,i){
+      var pen=closedCardPenalty(c,state.weights);
+      var el=document.createElement("div"); el.className="row";
+      el.innerHTML=
+        '<div class="rowhead"><span class="rowtitle">'+(c.label||("Card "+(i+1)))+'</span>'+
+        '<span class="contrib">−'+pen.toFixed(2)+'</span></div>'+
+        '<div class="field" style="margin-bottom:10px"><span class="mini">Label</span>'+
+          '<input type="text" data-k="label" data-i="'+i+'" value="'+escapeAttr(c.label)+'" '+
+          'style="width:100%;background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:JetBrains Mono,monospace;font-size:13px"></div>'+
+        '<div class="grid2">'+
+          '<div><span class="mini">Welcome bonus earned (pts)</span><input type="number" min="0" step="5000" data-k="bonus" data-i="'+i+'" value="'+c.bonus+'"></div>'+
+          '<div><span class="mini">Spending level after earned bonus</span><select data-k="postBonusSpend" data-i="'+i+'">'+
+            sopt(0,"None",c.postBonusSpend)+sopt(1,"Low",c.postBonusSpend)+sopt(2,"Moderate",c.postBonusSpend)+sopt(3,"Heavy",c.postBonusSpend)+
+          '</select></div>'+
+        '</div>'+
+        '<div class="grid2" style="margin-top:10px">'+
+          '<div><span class="mini">Months held open</span><input type="number" min="0" step="1" data-k="monthsOpen" data-i="'+i+'" value="'+c.monthsOpen+'"></div>'+
+          '<div><span class="mini">Months since closed</span><input type="number" min="0" step="1" data-k="monthsSinceClosed" data-i="'+i+'" value="'+c.monthsSinceClosed+'"></div>'+
+        '</div>'+
+        '<button class="del" data-del-card="'+i+'" title="Remove" style="position:absolute;top:12px;right:12px">×</button>';
+      host.appendChild(el);
+    });
+  }
+
+  function opt(pair,cur){var v=pair[0],l=pair[1];return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+l+'</option>';}
+  function sopt(v,l,cur){return '<option value="'+v+'"'+(Number(cur)===v?' selected':'')+'>'+l+'</option>';}
+  function escapeAttr(s){return String(s==null?"":s).replace(/"/g,'&quot;');}
+
+  function renderLedger(res){
+    var maxAbs=Math.max.apply(null, res.terms.map(function(t){return Math.abs(t.v);}).concat([0.5]));
+    var host=$("ledger"); host.innerHTML="";
+    res.terms.forEach(function(t){
+      var pos=t.v>=0;
+      var w=Math.abs(t.v)/maxAbs*50; // % of half-width
+      var fill=pos
+        ? '<div class="fill pos" style="width:'+w+'%"></div>'
+        : '<div class="fill neg" style="width:'+w+'%"></div>';
+      var row=document.createElement("div"); row.className="lrow";
+      row.innerHTML=
+        '<div class="lname">'+t.name+'</div>'+
+        '<div class="lbar"><div class="mid"></div>'+fill+'</div>'+
+        '<div class="lval '+(pos?'pos':'neg')+'">'+(pos?'+':'−')+Math.abs(t.v).toFixed(2)+'</div>';
+      host.appendChild(row);
+    });
+  }
+
+  function render(){
+    var res=compute();
+    // hero
+    $("pct").textContent=res.P.toFixed(0)+"%";
+    var vd=verdictFor(res.P);
+    var vEl=$("verdict"); vEl.textContent=vd[0]; vEl.style.color=vd[1];
+    $("pct").style.color = res.P>=55?"var(--safe)":(res.P<45?"var(--risk)":"var(--gold)");
+    $("zval").textContent="Z = "+res.Z.toFixed(3)+"   ·   E = "+res.E.toFixed(2);
+    $("needle").style.left=clamp(res.P,0,100)+"%";
+    $("zsum").textContent=res.Z.toFixed(3);
+    $("zsum").style.color = res.Z>=0?"var(--safe)":"var(--risk)";
+    // spend note
+    $("spendNote").textContent="engagement E = "+res.E.toFixed(2)+" / 3.0";
+    renderLedger(res);
+  }
+
+  function renderAll(){ renderRetentions(); renderCards(); render(); }
+
+  // ---------- events ----------
+  function bindNum(id,key,isFloat){
+    $(id).addEventListener("input",function(){
+      var v=isFloat?parseFloat(this.value):parseInt(this.value,10);
+      state[key]=isNaN(v)?0:v; render();
+    });
+  }
+  bindNum("tenure","tenure"); bindNum("velocity","velocity"); bindNum("lifetime","lifetime");
+  $("bank").addEventListener("change",function(){state.bank=this.value;render();});
+  $("offers").addEventListener("change",function(){state.offers=this.value;render();});
+
+  // spend: number + range stay in sync
+  $("spend").addEventListener("input",function(){
+    var v=parseFloat(this.value); state.spend=isNaN(v)?0:v; $("spendRange").value=clamp(state.spend,0,5000); render();
+  });
+  $("spendRange").addEventListener("input",function(){
+    state.spend=parseFloat(this.value); $("spend").value=state.spend; render();
+  });
+
+  // weights
+  var wmap={w_base:"base",w_through:"through",w_tenure:"tenure",w_close:"close",w_ret:"ret",w_vel:"vel",w_life:"life",w_half:"half"};
+  Object.keys(wmap).forEach(function(id){
+    $(id).addEventListener("input",function(){
+      var v=parseFloat(this.value); state.weights[wmap[id]]=isNaN(v)?0:v;
+      if(wmap[id]==="half" && state.weights.half<=0) state.weights.half=0.0001;
+      renderAll();
+    });
+  });
+  $("reset").addEventListener("click",function(){
+    state.weights=Object.assign({},DEFAULT_WEIGHTS);
+    Object.keys(wmap).forEach(function(id){$(id).value=DEFAULT_WEIGHTS[wmap[id]];});
+    renderAll();
+  });
+
+  // dynamic array delegation
+  $("retRows").addEventListener("input",function(e){
+    var t=e.target, i=t.getAttribute("data-i"), k=t.getAttribute("data-k");
+    if(i===null) return; i=+i;
+    state.retentions[i][k] = (k==="monthsSince") ? (parseInt(t.value,10)||0) : t.value;
+    render(); // light update; row contrib refreshed on next full render
+  });
+  $("retRows").addEventListener("change",function(e){
+    if(e.target.getAttribute("data-k")==="type") renderAll();
+  });
+  $("retRows").addEventListener("click",function(e){
+    var d=e.target.getAttribute("data-del-ret");
+    if(d!==null){ state.retentions.splice(+d,1); renderAll(); }
+  });
+  $("addRet").addEventListener("click",function(){
+    state.retentions.push({type:"retention",monthsSince:0}); renderAll();
+  });
+
+  $("cardRows").addEventListener("input",function(e){
+    var t=e.target, i=t.getAttribute("data-i"), k=t.getAttribute("data-k");
+    if(i===null) return; i=+i;
+    if(k==="label") state.closedCards[i].label=t.value;
+    else state.closedCards[i][k]=parseInt(t.value,10)||0;
+    render();
+  });
+  $("cardRows").addEventListener("change",function(e){
+    if(e.target.getAttribute("data-k")==="postBonusSpend"){
+      var i=+e.target.getAttribute("data-i");
+      state.closedCards[i].postBonusSpend=parseInt(e.target.value,10)||0; renderAll();
+    }
+  });
+  $("cardRows").addEventListener("click",function(e){
+    var d=e.target.getAttribute("data-del-card");
+    if(d!==null){ state.closedCards.splice(+d,1); renderAll(); }
+  });
+  $("addCard").addEventListener("click",function(){
+    var n=state.closedCards.length+1;
+    state.closedCards.push({label:"Card "+n,bonus:60000,monthsOpen:12,monthsSinceClosed:0,postBonusSpend:1});
+    renderAll();
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
